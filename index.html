@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>ブラウザたまごっち</title>
+<style>
+  body {
+    font-family: sans-serif;
+    text-align: center;
+    background: #f5f5f5;
+  }
+  #pet {
+    font-size: 80px;
+    margin: 20px;
+  }
+  .status {
+    margin: 5px;
+  }
+  button {
+    font-size: 16px;
+    padding: 10px 15px;
+    margin: 5px;
+  }
+  .sick {
+    color: red;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+
+<h1>マイたまごっち</h1>
+
+<div id="pet">🥚</div>
+
+<div class="status">🍚 満腹度: <span id="hunger"></span></div>
+<div class="status">⚡ 元気: <span id="energy"></span></div>
+<div class="status">😊 機嫌: <span id="mood"></span></div>
+<div class="status">📅 年齢: <span id="age"></span> 日</div>
+<div class="status">❤️ 寿命: <span id="life"></span></div>
+<div class="status sick" id="sickStatus"></div>
+
+<button onclick="feed()">ごはん</button>
+<button onclick="sleepPet()">ねる</button>
+<button onclick="play()">あそぶ</button>
+<button onclick="medicine()">くすり</button>
+
+<!-- 効果音（1音） -->
+<audio id="sound" src="https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3"></audio>
+
+<script>
+let pet = {
+  hunger: 80,
+  energy: 80,
+  mood: 80,
+  age: 0,
+  stage: "egg",
+  life: 100,
+  isSick: false,
+  lastUpdate: Date.now()
+};
+
+function playSound() {
+  const s = document.getElementById("sound");
+  s.currentTime = 0;
+  s.play();
+}
+
+function loadPet() {
+  const data = localStorage.getItem("petData");
+  if (data) pet = JSON.parse(data);
+}
+
+function savePet() {
+  localStorage.setItem("petData", JSON.stringify(pet));
+}
+
+function updateByTime() {
+  const now = Date.now();
+  const minutes = Math.floor((now - pet.lastUpdate) / 60000);
+
+  if (minutes > 0) {
+    pet.hunger -= minutes * 2;
+    pet.energy -= minutes;
+    pet.mood -= minutes;
+    pet.age += Math.floor(minutes / 10);
+    pet.lastUpdate = now;
+  }
+
+  pet.hunger = Math.max(0, pet.hunger);
+  pet.energy = Math.max(0, pet.energy);
+  pet.mood = Math.max(0, pet.mood);
+}
+
+function growUp() {
+  if (pet.age >= 1 && pet.stage === "egg") pet.stage = "baby";
+  if (pet.age >= 3 && pet.stage === "baby") pet.stage = "child";
+  if (pet.age >= 6 && pet.stage === "child") pet.stage = "adult";
+}
+
+function petEmoji() {
+  if (pet.stage === "egg") return "🥚";
+  if (pet.stage === "baby") return "🐣";
+  if (pet.stage === "child") return "🐤";
+  return "🐔";
+}
+
+/* ===== 病気・寿命システム ===== */
+function checkSick() {
+  if (!pet.isSick && (pet.hunger < 20 || pet.mood < 20)) {
+    if (Math.random() < 0.25) {
+      pet.isSick = true;
+    }
+  }
+}
+
+function lifeCheck() {
+  if (pet.isSick) {
+    pet.life -= 1;
+  }
+  if (pet.life <= 0) {
+    alert("寿命です…ありがとう。");
+    localStorage.removeItem("petData");
+    location.reload();
+  }
+}
+
+function medicine() {
+  playSound();
+  if (pet.isSick) {
+    pet.isSick = false;
+    pet.mood = Math.min(100, pet.mood + 10);
+  }
+  savePet();
+  render();
+}
+
+/* ===== アクション ===== */
+function feed() {
+  playSound();
+  pet.hunger = Math.min(100, pet.hunger + 20);
+  pet.mood = Math.min(100, pet.mood + 5);
+  savePet();
+  render();
+}
+
+function sleepPet() {
+  playSound();
+  pet.energy = Math.min(100, pet.energy + 30);
+  savePet();
+  render();
+}
+
+function play() {
+  playSound();
+  pet.mood = Math.min(100, pet.mood + 20);
+  pet.energy = Math.max(0, pet.energy - 10);
+  savePet();
+  render();
+}
+
+/* ===== 描画 ===== */
+function render() {
+  document.getElementById("pet").textContent = petEmoji();
+  document.getElementById("hunger").textContent = pet.hunger;
+  document.getElementById("energy").textContent = pet.energy;
+  document.getElementById("mood").textContent = pet.mood;
+  document.getElementById("age").textContent = pet.age;
+  document.getElementById("life").textContent = pet.life;
+  document.getElementById("sickStatus").textContent =
+    pet.isSick ? "🤒 病気です！" : "";
+}
+
+function gameLoop() {
+  updateByTime();
+  growUp();
+  checkSick();
+  lifeCheck();
+  savePet();
+  render();
+}
+
+loadPet();
+gameLoop();
+setInterval(gameLoop, 60000);
+</script>
+
+</body>
+</html>
